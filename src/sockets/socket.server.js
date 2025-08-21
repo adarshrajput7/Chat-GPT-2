@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken')
 const userModel = require('../models/user.model')
 const aiService = require('../services/ai.service')
 const messageModel = require('../models/message.model')
+const {queryMemory,createMemory} = require('../services/vector.service')
 
 function initSocketServer(httpServer) {
 
@@ -42,12 +43,36 @@ function initSocketServer(httpServer) {
       console.log('Received AI message:', messagePayload)
 
 
-      await messageModel.create({
+      const message = await messageModel.create({
         chat: messagePayload.chat,
         user: socket.user._id,
         content: messagePayload.content,
         role: 'user'
       })
+
+      // vector memory
+
+      const vectors = await aiService.generateVector(messagePayload.content)
+
+
+      const memory  = await queryMemory({
+        queryVector: vectors,
+        limit: 3,
+        metadata:{}
+      })
+
+      await createMemory({
+        vectors,
+        messageId: message._id,
+        metadata: {
+          chat: messagePayload.chat,
+          user: socket.user._id,
+          text: messagePayload.content,
+        },
+      })
+
+
+      console.log('queryMemory retrieved:', memory)
 
       const chatHistory = (await messageModel.find({
         chat: messagePayload.chat
@@ -62,11 +87,23 @@ function initSocketServer(httpServer) {
         }
       }))
 
-      await messageModel.create({
+      const responseMessage = await messageModel.create({
         chat: messagePayload.chat,
         user: socket.user._id,
         content: response,
         role: 'model'
+      })
+
+      const responseVectors = await aiService.generateVector(response)
+
+      await createMemory({
+        vectors:responseVectors,
+        messageId: responseMessage._id,
+        metadata: {
+          chat: messagePayload.chat,
+          user: socket.user._id,
+          text: response
+        }
       })
       
       socket.emit('ai-response', {
