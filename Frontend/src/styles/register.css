@@ -1,0 +1,5 @@
+@import './theme.css';
+
+/* Register page specific tweaks */
+.auth-card { max-width: 560px; }
+.name-row .field { flex: 1; }

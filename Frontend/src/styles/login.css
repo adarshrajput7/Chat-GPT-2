@@ -1,0 +1,5 @@
+@import './theme.css';
+
+/* Login page specific tweaks */
+.auth-card { max-width: 480px; }
+.auth-title { font-size: 1.3rem; }
